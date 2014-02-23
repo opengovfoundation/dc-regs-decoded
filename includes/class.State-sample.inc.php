@@ -68,7 +68,7 @@ class State
 		return TRUE;
 	}
 	*/
-	
+
 	/**
 	 * Retrieve a list of every attempt to amend a law
 	 *
@@ -79,13 +79,13 @@ class State
 	 * @return true or false
 	 */
 	/*function get_amendment_attempts()
-	{	
-		
+	{
+
 		if (!isset($this->section_number))
 		{
 			return FALSE;
 		}
-		
+
 		# Below is an example of how $this->bills should be formatted. Every field must be present,
 		# and they should be sorted chronologically, from most oldest to newest.
 		#
@@ -99,7 +99,7 @@ class State
 		#					[outcome] => passed
 		#					[url] => http://www.richmondsunlight.com/bill/2009/sb1316/
 		#				)
-		#		
+		#
 		#			[1] => stdClass Object
 		#				(
 		#					[year] => 2010
@@ -108,7 +108,7 @@ class State
 		#					[outcome] => failed
 		#					[url] => http://www.richmondsunlight.com/bill/2010/hb449/
 		#				)
-		#		
+		#
 		#			[2] => stdClass Object
 		#				(
 		#					[year] => 2010
@@ -117,17 +117,17 @@ class State
 		#					[outcome] => passed
 		#					[url] => http://www.richmondsunlight.com/bill/2010/hb518/
 		#				)
-		
+
 		return TRUE;
-		
+
 	} // end get_amendment_attempts()
 	*/
-	
+
 	/**
 	 * Retrieve a list of every court decision that cites a given law.
 	 *
 	 * A customization is necessary to get this working for your legal code.
-	 * 
+	 *
 	 * You need to experiment with searches on CourtListener and figure out how to build a query
 	 * that will return court decisions that refer to your legal code. In the below example, for
 	 * Virginia, we've created $url by prefixing the section number query with "Virginia Code" (URL
@@ -137,7 +137,7 @@ class State
 	 * displayed for each ruling, which can look better if abbreviated. You can modify the example
 	 * Virginia text that's provided. Or, if you do nothing, the entire court name will be
 	 * displayed.
-	 * 
+	 *
 	 * @return true or false
 	 */
 	/*function get_court_decisions()
@@ -148,11 +148,11 @@ class State
 		{
 			return FALSE;
 		}
-		
+
 		// Assemble the URL for our query to the CourtListener API.
 		$url = 'https://www.courtlistener.com/api/rest/v1/search/?q=Virginia+Code+%22'
 			. urlencode($this->section_number) . '%22&order_by=score+desc&format=json';
-		
+
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
 		curl_setopt($ch, CURLOPT_TIMEOUT_MS, 1200);
@@ -164,41 +164,41 @@ class State
 		curl_setopt($ch, CURLOPT_PROTOCOLS, $allowed_protocols);
 		curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, $allowed_protocols & ~(CURLPROTO_FILE | CURLPROTO_SCP));
 		$json = curl_exec($ch);
-		
+
 		// If the query failed.
 		if ($json == FALSE)
 		{
 			return FALSE;
 		}
-		
+
 		// Turn this JSON into an object.
 		$cl_list = json_decode($json);
-		
+
 		// If the JSON is invalid.
 		if ($cl_list == FALSE)
 		{
 			return FALSE;
 		}
-		
+
 		// If no results were found.
 		if ($cl_list->meta->total_count == 0)
 		{
 			return FALSE;
 		}
-		
+
 		// Create an object to store the decisions that we're going to return.
 		$this->decisions = new stdClass();
-		
+
 		// Iterate through the decisions and assign the first 10 to $this->decisions.
 		$i=0;
 		foreach ($cl_list->objects as $opinion)
 		{
-			
+
 			if ($i == 10)
 			{
 				break;
 			}
-			
+
 			// Port the fields that we need from $opinion to $this->decisions.
 			$this->decisions->{$i}->name = $opinion->case_name;
 			$this->decisions->{$i}->case_number = $opinion->case_number;
@@ -206,7 +206,7 @@ class State
 			$this->decisions->{$i}->date = date('Y-m-d', strtotime($opinion->date_filed));
 			$this->decisions->{$i}->url = 'https://www.courtlistener.com' . $opinion->absolute_url;
 			$this->decisions->{$i}->abstract = ' . . . ' . array_shift(explode("\n", wordwrap(html_entity_decode(strip_tags($opinion->snippet)), 100))) . ' . . . ';
-			
+
 			if ($opinion->court == 'Court of Appeals of Virginia')
 			{
 				$this->decisions->{$i}->court_html = '<abbr title="Court of Appeals">COA</abbr>';
@@ -219,22 +219,22 @@ class State
 			{
 				$this->decisions->{$i}->court_html = $opinion->court;
 			}
-				
+
 			$i++;
-			
+
 		}
-		
+
 		// Store these decisions in the metadata table.
 		$law = new Law();
 		$law->section_id = $this->section_id;
 		$law->metadata->{0}->key = 'court_decisions';
 		$law->metadata->{0}->value = json_encode($this->decisions);
 		$law->store_metadata();
-		
+
 		return TRUE;
-		
+
 	}*/
-	
+
 }
 
 
@@ -255,7 +255,7 @@ class Parser
 
 	public function __construct($options)
 	{
-	
+
 		/**
 		 * Set our defaults
 		 */
@@ -287,7 +287,7 @@ class Parser
 
 			while (false !== ($filename = $directory->read()))
 			{
-			
+
 				/*
 				 * We should make sure we've got an actual file that's readable.
 				 * Ignore anything that starts with a dot.
@@ -299,7 +299,7 @@ class Parser
 				{
 					$this->files[] = $filepath;
 				}
-				
+
 			}
 
 			/*
@@ -405,7 +405,16 @@ class Parser
 				exec('tidy -xml '.$filename, $output);
 				$xml = join('', $output);
 			}
-			$this->section = new SimpleXMLElement($xml);
+			try
+			{
+				$this->section = new SimpleXMLElement($xml);
+			}
+			catch(Exception $e)
+			{
+				print "Cannot import $filename\n";
+				print $e->getMessage();
+				return;
+			}
 		}
 
 		/*
